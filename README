@@ -1,0 +1,13 @@
+To keep your python environment sane, I recommend doing this in a virtualenv [1].
+
+To use:
+* hg clone http://hg.mozilla.org/users/clegnitto_mozilla.com/mozillapulse
+* python mozillapulse/setup.py develop
+* hg clone http://hg.mozilla.org/automation/pulsebuildmonitor
+* python pulsebuildmonitor/setup.py develop
+
+Then clone this repo and run:
+* python harvester.py
+
+[1]:http://pypi.python.org/pypi/virtualenv
+
