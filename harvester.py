@@ -76,7 +76,7 @@ class Harvester():
         self.testlist = testlist
         self.monitor = start_pulse_monitor(label="harvester@mozilla.com|PulseTestLogFetcher",
                                    testCallback=self.on_test_complete, tree=tree,
-                                   platform=platforms, buildtype=buildtype)
+                                   platform=platforms, buildtype=buildtype, includeTalos=True)
         if not async:
             self.monitor.join()
     
@@ -100,7 +100,7 @@ class Harvester():
         print "------ BEGINNING LOG DUMP -----"
         print logdata
         print "------ ENDING LOG DUMP -------"
-    
+        sys.exit()
 
 def main():
     parser = HarvesterOptions()
