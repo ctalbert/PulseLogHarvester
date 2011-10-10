@@ -20,6 +20,7 @@
 #
 # Contributor(s):
 #   Clint Talbert <ctalbert@mozilla.com>
+#   Stephen Lewchuk <slewchuk@mozilla.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -54,12 +55,10 @@ class HarvesterOptions(OptionParser):
         defaults['tree'] = 'mozilla-central'
 
         self.add_option('--platforms', action="store", type = "string",
-            dest='platforms', help = "Comma separated list of platforms to pull builds for - defaults to all")
-        defaults['platforms'] = 'linux,linux64,win32,win64,macosx,macosx64'
+            dest='platforms', help = "Comma separated list of platforms to pull builds for - defaults to all with blank spec")
         
         self.add_option('--buildtype', action="store", type="string",
-            dest="buildtype", help = "Either opt,dbg build to pull from, defaults to all")
-        defaults["buildtype"] = 'debug,opt'
+            dest="buildtype", help = "Either opt,dbg build to pull from, defaults to all with blank spec")
         
         self.add_option('--testlist', action='store', type='string',
             dest='testlist', help="Comma separated list of test types to harvest logs for, defaults to talos")
@@ -105,8 +104,8 @@ def main():
     parser = HarvesterOptions()
     options, args = parser.parse_args()
     tree = options.tree.split(',')
-    platforms = options.platforms.split(',')
-    buildtype = options.buildtype.split(',')
+    platforms = options.platforms and options.platforms.split(',') or None
+    buildtype = options.buildtype and options.buildtype.split(',') or None
     testlist = options.testlist.split(',')
     h = Harvester(tree, platforms, buildtype, testlist)
     
