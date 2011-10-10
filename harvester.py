@@ -100,7 +100,6 @@ class Harvester():
         print "------ BEGINNING LOG DUMP -----"
         print logdata
         print "------ ENDING LOG DUMP -------"
-        sys.exit()
 
 def main():
     parser = HarvesterOptions()
