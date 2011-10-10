@@ -61,8 +61,15 @@ class HarvesterOptions(OptionParser):
             dest="buildtype", help = "Either opt,dbg build to pull from, defaults to all with blank spec")
         
         self.add_option('--testlist', action='store', type='string',
-            dest='testlist', help="Comma separated list of test types to harvest logs for, defaults to talos")
-        defaults["testlist"] = 'talos'
+            dest='testlist', help="Comma separated list of test types to harvest logs for, defaults to all with blank spec")
+
+        self.add_option('--strip-non-talos', action='store_true',
+            dest='strip_non_talos', help="Flag to drop non-talos tests, defaults to false, should not be used with --strip-talos")
+        defaults['strip_non_talos'] = False
+
+        self.add_option('--strip-talos', action='store_true',
+            dest='strip_talos', help="Flag to drop talos tests, defaults to false, should not be used with --strip-non-talos")
+        defaults['strip_talos'] = False
 
         self.set_defaults(**defaults)
         
@@ -70,9 +77,13 @@ class Harvester():
     """
     Each parameter is an array of elements
     """
-    def __init__(self, tree, platforms, buildtype, testlist, async=False):
+    def __init__(self, tree, platforms, buildtype, testlist, strip_talos, strip_non_talos, async=False):
+
+        print (tree, platforms, buildtype, testlist, strip_talos, strip_non_talos)
 
         self.testlist = testlist
+        self.strip_talos = strip_talos
+        self.strip_non_talos = strip_non_talos
         self.monitor = start_pulse_monitor(label="harvester@mozilla.com|PulseTestLogFetcher",
                                    testCallback=self.on_test_complete, tree=tree,
                                    platform=platforms, buildtype=buildtype, includeTalos=True)
@@ -85,7 +96,11 @@ class Harvester():
         print "---------------------------------------------------------"
         
         try:
-            if testdata['test'] in self.testlist:
+            if testdata['talos'] and self.strip_talos:
+                return
+            if not testdata['talos'] and self.strip_non_talos:
+                return
+            if not self.testlist or testdata['test'] in self.testlist:
                 self.handle_log(testdata)
         except:
             print "Threw exception while handling test data %s: %s" % (sys.exc_info()[:2])
@@ -106,8 +121,9 @@ def main():
     tree = options.tree.split(',')
     platforms = options.platforms and options.platforms.split(',') or None
     buildtype = options.buildtype and options.buildtype.split(',') or None
-    testlist = options.testlist.split(',')
-    h = Harvester(tree, platforms, buildtype, testlist)
+    testlist = options.testlist and options.testlist.split(',') or None
+
+    h = Harvester(tree, platforms, buildtype, testlist, options.strip_talos, options.strip_non_talos)
     
 if __name__ == "__main__":
     main()
