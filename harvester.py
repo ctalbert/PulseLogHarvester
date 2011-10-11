@@ -42,6 +42,9 @@ import sys
 import threading
 import shutil
 import urllib2
+import json
+import gzip
+import StringIO
 from optparse import OptionParser
 
 class HarvesterOptions(OptionParser):
@@ -71,19 +74,33 @@ class HarvesterOptions(OptionParser):
             dest='strip_talos', help="Flag to drop talos tests, defaults to false, should not be used with --strip-non-talos")
         defaults['strip_talos'] = False
 
+        self.add_option('--dump', action='store_true',
+            dest='dump', help="Flag to pull logs and dump to stdin - will unzip the file - defaults to flase")
+
+        self.add_option('--log-destination', action='store', type = 'string',
+            dest='log_dest', help="Location to store downloaded logs - defaults to ./logs/")
+        defaults['log_dest'] = "./logs/"
+
         self.set_defaults(**defaults)
         
 class Harvester():
     """
     Each parameter is an array of elements
     """
-    def __init__(self, tree, platforms, buildtype, testlist, strip_talos, strip_non_talos, async=False):
+    def __init__(self, tree, platforms, buildtype, testlist, log_dest, strip_talos, strip_non_talos, dump, async=False):
 
         print (tree, platforms, buildtype, testlist, strip_talos, strip_non_talos)
 
         self.testlist = testlist
         self.strip_talos = strip_talos
         self.strip_non_talos = strip_non_talos
+        self.log_dest = log_dest
+        self.dump = dump
+
+        self.log_dest = os.path.abspath(log_dest)
+        if not os.path.exists(self.log_dest):
+            os.makedirs(self.log_dest)
+
         self.monitor = start_pulse_monitor(label="harvester@mozilla.com|PulseTestLogFetcher",
                                    testCallback=self.on_test_complete, tree=tree,
                                    platform=platforms, buildtype=buildtype, includeTalos=True)
@@ -92,7 +109,7 @@ class Harvester():
     
     def on_test_complete(self, testdata):
         print "---------------------------------------------------------"
-        print "Got Test data %s" % testdata
+        print "Got Test data for %s" % testdata['buildername']
         print "---------------------------------------------------------"
         
         try:
@@ -107,13 +124,30 @@ class Harvester():
             raise
 
     def handle_log(self, testdata):
-        print "Here is where you handle the test data, right now, we dump log to stdout"
-        print "LogURL: %s" % testdata["logurl"]
+        print "Handling log: %s" % testdata["buildername"]
         response = urllib2.urlopen(testdata["logurl"])
         logdata = response.read()
-        print "------ BEGINNING LOG DUMP -----"
-        print logdata
-        print "------ ENDING LOG DUMP -------"
+
+        outfilename = testdata["logurl"].replace("_","-").replace("/","_").replace(":","")
+        outpath = os.path.join(self.log_dest, outfilename)
+        print "Log written to: %s" % outpath
+
+        with open(outpath,'w') as outfile:
+            outfile.write(logdata)
+
+        outpath_log = outpath[:outpath.rfind('.')] + ".json"
+        with open(outpath_log,'w') as outfile:
+            outfile.write(json.dumps(testdata))
+
+        if self.dump:
+            print "------ BEGINNING LOG DUMP -----"
+            if testdata['logurl'].endswith('gz'):
+                logfile = StringIO(logdata)
+                data = gzip.GzipFile(fileobj=logfile)
+            else:
+                data = logdata
+            print data
+            print "------ ENDING LOG DUMP -------"
 
 def main():
     parser = HarvesterOptions()
@@ -123,7 +157,7 @@ def main():
     buildtype = options.buildtype and options.buildtype.split(',') or None
     testlist = options.testlist and options.testlist.split(',') or None
 
-    h = Harvester(tree, platforms, buildtype, testlist, options.strip_talos, options.strip_non_talos)
+    h = Harvester(tree, platforms, buildtype, testlist, options.log_dest, options.strip_talos, options.strip_non_talos, options.dump)
     
 if __name__ == "__main__":
     main()
